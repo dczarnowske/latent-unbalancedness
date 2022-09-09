@@ -1,7 +1,7 @@
 ################################################################################
 # empirical example
 #
-# date: 2022/07/13
+# date: 2022/09/09
 ################################################################################
 
 # required packages
@@ -29,6 +29,19 @@ dt_full[, imp_time := interaction(imp, time)]
 dt_full[, pair := interaction(exp, imp)]
 dt_full <- dt_full[!(isic_id %in% c(5, 6, 31:35))]
 dt_full[, isic_id := as.integer(factor(isic_id))]
+
+# text -- footnote 9 (coal industry (10))
+dt_coal <- dt_full[isic_id == 4]
+dt_coal[, any(y > 0), by = .(exp, time)][, all(V1), by = exp][, summary(V1)]
+dt_coal[, any(y > 0), by = .(imp, time)][, all(V1), by = imp][, summary(V1)]
+dt_coal[, sum(y > 0), by =  .(imp, time)][, summary(V1)]
+dt_coal <- dropObservations(dt_coal)
+dt_coal[, exp_time := droplevels(exp_time)]
+dt_coal[, imp_time := droplevels(imp_time)]
+nrow(dt_coal) / dt_coal[, length(unique(imp_time))] # Ibar 
+nrow(dt_coal) / dt_coal[, length(unique(exp_time))] # Jbar 
+
+# for all industries plus aggregate trade
 dt_list <- lapply(1:max(dt_full$isic_id), function(id, dt_full) {
   dt <- dt_full[isic_id == id]
   desc <- tolower(dt[, first(isicdescr)])
@@ -76,29 +89,36 @@ fig_vars <- c("isic", "c_alpha", "c_gamma", "d")
 dt_fig <- dt[, fig_vars, with = FALSE]
 dt_fig[, B := c_alpha / d]
 dt_fig[, D := c_gamma / d]
+dt_fig[, V := 1 / sqrt(d)]
 dt_fig[, BD_max := pmax(B, D)]
 dt_fig[isic != "Agg", summary(BD_max)]
+dt_fig[isic != "Agg", summary(V)]
+dt_fig[isic == "Agg", BD_max]
+dt_fig[isic == "Agg", V]
 dt_fig <- melt(
   dt_fig,
   id.vars       = "isic",
-  measure.vars  = c("B", "D"),
-  variable.name = "bias_term",
+  measure.vars  = c("B", "D", "V"),
+  variable.name = "component",
   value.name    = "scale"
 )
 new_levels <- c(
-  "Exporter (B)" = "B",
-  "Importer (D)" = "D"
+  "Exporter (B)"        = "B",
+  "Importer (D)"        = "D",
+  "Std. Deviation (V)" = "V"
 )
-dt_fig[, bias_term := fct_recode(bias_term, !!!new_levels)]
-ggplot(dt_fig, aes(x = isic, y = scale, fill = bias_term)) +
+dt_fig[, component := fct_recode(component, !!!new_levels)]
+ggplot(dt_fig, aes(x = isic, y = scale, fill = component)) +
   geom_col(position = "dodge") +
   labs(
     x    = "2 Digit ISIC Industry Codes",
-    y    = "Scaling Factor (c / d)",
+    y    = "Scaling Factor",
     fill = NULL
   ) +
   geom_hline(yintercept = 8, alpha = 0) +
-  scale_fill_manual(values = c("Exporter (B)" = "#D9D9D9", "Importer (D)" = "#525252")) +
+  scale_fill_manual(
+    values = c("Exporter (B)" = "#D9D9D9", "Importer (D)" = "#969696", "Std. Deviation (V)" = "#525252")
+  ) +
   scale_y_continuous(breaks = seq(0, 9, 1)) +
   theme_few() +
   theme(legend.position = "bottom")
