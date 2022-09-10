@@ -30,7 +30,7 @@ dt_full[, pair := interaction(exp, imp)]
 dt_full <- dt_full[!(isic_id %in% c(5, 6, 31:35))]
 dt_full[, isic_id := as.integer(factor(isic_id))]
 
-# text -- footnote 9 (coal industry (10))
+# text -- footnote 10 (coal industry (10))
 dt_coal <- dt_full[isic_id == 4]
 dt_coal[, any(y > 0), by = .(exp, time)][, all(V1), by = exp][, summary(V1)]
 dt_coal[, any(y > 0), by = .(imp, time)][, all(V1), by = imp][, summary(V1)]
